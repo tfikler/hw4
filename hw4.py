@@ -30,6 +30,22 @@ class LogisticRegressionGD(object):
         self.Js = []
         self.thetas = []
 
+    def sigmoid(self, X):
+      
+
+      z = np.dot(X, self.theta)
+      
+      e_to_power = np.exp(-z)
+      
+      return 1 / (1 + e_to_power)
+    
+    def cost_function(self, X, y):
+      
+      cost0 = np.dot(y, np.log(self.sigmoid(X)))
+      cost1 = np.dot((1-y), np.log(1-self.sigmoid(X)))
+      cost = -((cost1 + cost0))/len(y) 
+      return cost
+    
     def fit(self, X, y):
         """
         Fit training data (the learning phase).
@@ -51,14 +67,15 @@ class LogisticRegressionGD(object):
         """
         # set random seed
         np.random.seed(self.random_state)
-
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        m = X.shape[0]
+        self.theta = np.zeros((X.shape[1]) + 1)
+        new_data = np.c_[np.ones((X.shape[0],1)),X]
+        for i in range(self.n_iter):
+          self.theta = self.theta - self.eta * np.dot(new_data.T,self.sigmoid(new_data) - y)
+          self.thetas.append(self.theta)
+          self.Js.append(self.cost_function(new_data,y))
+          if i > 0 and (self.Js[-2] - self.Js[-1] < self.eps): # Checking if the loss value is less than (1e-8), if true -> break, else continue.
+            break 
 
     def predict(self, X):
         """
@@ -67,14 +84,16 @@ class LogisticRegressionGD(object):
         ----------
         X : {array-like}, shape = [n_examples, n_features]
         """
-        preds = None
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        preds = []
+        new_data = np.c_[np.ones((X.shape[0],1)),X]
+        x = self.sigmoid(new_data)
+        for i in x:
+          if i > 0.5:
+            preds.append(1)
+          else:
+            preds.append(0)
+            
+        print(self.theta)
         return preds
 
 def cross_validation(X, y, folds, algo, random_state):
@@ -105,14 +124,10 @@ def cross_validation(X, y, folds, algo, random_state):
 
     # set random seed
     np.random.seed(random_state)
-
-    ###########################################################################
-    # TODO: Implement the function.                                           #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    new_data = np.c_[np.ones((X.shape[0],1)),X]
+    np.random.shuffle(new_data)
+    folded = np.split(new_data, 5)
+    print(folded[1])
     return cv_accuracy
 
 def norm_pdf(data, mu, sigma):
