@@ -92,8 +92,6 @@ class LogisticRegressionGD(object):
             preds.append(1)
           else:
             preds.append(0)
-            
-        print(self.theta)
         return preds
 
 def cross_validation(X, y, folds, algo, random_state):
@@ -120,15 +118,42 @@ def cross_validation(X, y, folds, algo, random_state):
     Returns the cross validation accuracy.
     """
 
-    cv_accuracy = None
+    cv_accuracy = []
 
     # set random seed
     np.random.seed(random_state)
-    new_data = np.c_[np.ones((X.shape[0],1)),X]
-    np.random.shuffle(new_data)
-    folded = np.split(new_data, 5)
-    print(folded[1])
-    return cv_accuracy
+     # Shuffle data indices
+    indices = np.random.permutation(len(X))
+    X_shuffled = X[indices]
+    y_shuffled = y[indices]
+
+    # Split data into folds
+    fold_size = len(X) // folds
+    X_folds = np.array_split(X_shuffled, folds)
+    y_folds = np.array_split(y_shuffled, folds)
+
+    accuracies = []
+    
+    # Perform cross-validation
+    for i in range(folds):
+        # Construct train and test sets
+        X_train = np.concatenate(X_folds[:i] + X_folds[i+1:])
+        y_train = np.concatenate(y_folds[:i] + y_folds[i+1:])
+        X_test = X_folds[i]
+        y_test = y_folds[i]
+
+        # Train the logistic regression model
+        model = algo
+        model.fit(X_train, y_train)
+
+        # Predict on the test set
+        y_pred = model.predict(X_test)
+
+        # Calculate accuracy
+        accuracy = np.mean(y_pred == y_test)
+        accuracies.append(accuracy)
+        
+    return accuracies
 
 def norm_pdf(data, mu, sigma):
     """
