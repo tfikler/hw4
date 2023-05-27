@@ -118,42 +118,41 @@ def cross_validation(X, y, folds, algo, random_state):
     Returns the cross validation accuracy.
     """
 
-    cv_accuracy = []
-
+    cv_accuracy = None
+    accurencies = []
     # set random seed
     np.random.seed(random_state)
-     # Shuffle data indices
-    indices = np.random.permutation(len(X))
-    X_shuffled = X[indices]
-    y_shuffled = y[indices]
-
-    # Split data into folds
-    fold_size = len(X) // folds
-    X_folds = np.array_split(X_shuffled, folds)
-    y_folds = np.array_split(y_shuffled, folds)
-
-    accuracies = []
+    indices = np.arange(len(X))
+    np.random.shuffle(indices)
+    X = X[indices]
+    y = y[indices]
     
-    # Perform cross-validation
-    for i in range(folds):
-        # Construct train and test sets
-        X_train = np.concatenate(X_folds[:i] + X_folds[i+1:])
-        y_train = np.concatenate(y_folds[:i] + y_folds[i+1:])
-        X_test = X_folds[i]
-        y_test = y_folds[i]
+    fold_size = len(X) // 5
 
-        # Train the logistic regression model
-        model = algo
-        model.fit(X_train, y_train)
-
-        # Predict on the test set
-        y_pred = model.predict(X_test)
-
-        # Calculate accuracy
-        accuracy = np.mean(y_pred == y_test)
-        accuracies.append(accuracy)
-        
-    return accuracies
+    # Step 3: Assign samples to each fold
+    foldsX = []
+    foldsy = []
+    start_idx = 0
+    for _ in range(5):
+      folds = X[start_idx : start_idx + fold_size]
+      foldsX.append(folds)
+      folds = y[start_idx : start_idx + fold_size]
+      foldsy.append(folds)
+      start_idx += fold_size
+    
+    for i in range(5):
+      indices = [j for j in range(5) if j != i]  # Indices of folds to concatenate
+      X_train = np.concatenate([foldsX[j] for j in indices])
+      y_train = np.concatenate([foldsy[j] for j in indices])
+      X_val = foldsX[i]
+      y_val = foldsy[i]
+      algo.fit(X_train,y_train)
+      y_pred = algo.predict(X_val)
+      accuracy = np.mean(y_pred == y_val)
+      accurencies.append(accuracy)
+    
+    cv_accuracy = np.mean(accurencies)   
+    return cv_accuracy
 
 def norm_pdf(data, mu, sigma):
     """
