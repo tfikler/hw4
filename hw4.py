@@ -167,13 +167,11 @@ def norm_pdf(data, mu, sigma):
     Returns the normal distribution pdf according to the given mu and sigma for the given x.    
     """
     p = None
-    ###########################################################################
-    # TODO: Implement the function.                                           #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    power_of_e = (((data - mu)**2) / (2*(sigma**2)))
+    e_to_the_power = np.power(np.e,-power_of_e)
+    sqrt = 1 / np.sqrt(2 * np.pi * (sigma**2))
+    p = e_to_the_power * sqrt
+    
     return p
 
 class EM(object):
@@ -205,43 +203,45 @@ class EM(object):
         self.mus = None
         self.sigmas = None
         self.costs = None
+        
 
     # initial guesses for parameters
     def init_params(self, data):
         """
         Initialize distribution params
         """
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        NF = data.shape[1]
+        NS = data.shape[0]
+        self.mus = np.ones(2)
+        self.mus[0] = data[0]
+        self.mus[1] = data[data.shape[0] - 1]
+        self.sigmas = np.ones(2)
+        self.weights = np.ones(2)
+        self.sigmas[0] = 40.3
+        self.sigmas[1] = 20.3
+        self.weights[0] = 0.5
+        self.weights[1] = 0.5
+        self.costs = []
+        
+        
 
     def expectation(self, data):
         """
         E step - This function should calculate and update the responsibilities
         """
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        calc = self.weights*norm_pdf(data,self.mus,self.sigmas)
+        self.responsibilities = calc / np.sum(calc)
+        # Normalize the responsibilities
+        self.responsibilities /= np.sum(self.responsibilities, axis=1, keepdims=True)
+        
 
     def maximization(self, data):
         """
         M step - This function should calculate and update the distribution params
         """
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        self.mus = np.sum(self.responsibilities * data, axis = 0) / (data.shape[0]*self.weights) 
+        self.sigmas = np.sum(self.responsibilities * ((data - self.mus) ** 2), axis = 0) / (data.shape[0]*self.weights)
+        self.weights = np.sum(self.responsibilities, axis = 0) / (data.shape[0])
 
     def fit(self, data):
         """
@@ -252,13 +252,16 @@ class EM(object):
         Stop the function when the difference between the previous cost and the current is less than eps
         or when you reach n_iter.
         """
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        self.init_params(data)
+        self.costs = []
+        for i in range(self.n_iter):
+          print(self.mus)
+          self.expectation(data)
+          self.maximization(data)
+          log_likelihood = np.sum(-np.log(self.weights * norm_pdf(data,self.mus,self.sigmas)))
+          self.costs.append(log_likelihood)
+          if i > 0 and (np.abs(self.costs[-2] - self.costs[-1]) < self.eps): # Checking if the loss value is less than (1e-8), if true -> break, else continue.
+            break
 
     def get_dist_params(self):
         return self.weights, self.mus, self.sigmas
