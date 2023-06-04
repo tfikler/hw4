@@ -209,13 +209,19 @@ class EM(object):
         """
         Initialize distribution params
         """
-        self.mus = np.random.randn(self.k)
+        self.costs = []
+        numberOfSamples= data.shape[0]
+        self.mus = np.zeros(self.k)
+        rand_indx = np.random.choice(numberOfSamples, size=self.k)
+        #for i in range(self.k):
+        #  self.mus[i] = data[rand_indx[i]]
+        max = np.max(data)
+        min = np.min(data)
+        self.mus = np.random.uniform(min, max, self.k)
+        self.weights = np.ones(self.k) / self.k
+        self.responsibilities = np.ones((numberOfSamples, self.k)) / self.k
         self.sigmas = np.random.rand(self.k)
-        self.weights = np.ones(self.k)
-        for i in range(self.k):
-          self.weights[i] = 1 / self.k
         
-        self.response = {}
         
         
 
@@ -224,69 +230,22 @@ class EM(object):
         E step - This function should calculate and update the responsibilities
         """
         
-        #print(f'this is the weights in the exp:{self.weights}')
         calc = self.weights*norm_pdf(data,self.mus,self.sigmas)
-        #print(f'this is calc{calc}')
         calc = calc / calc.sum(axis = 1, keepdims=True)
         self.responsibilities = calc
-        #print(f'this is respon before back: {self.responsibilities}')
-        
         self.responsibilities /= np.sum(self.responsibilities, axis=1, keepdims=True)
         
-        """##ethan code below
-        n_samples = data.shape[0]
-        n_features = data.shape[1]
-        
-        self.response = {}
-        
-        for i in range(self.k):
-          likklihood = norm_pdf(data, self.mus[i],self.sigmas[i])
-          wei_lik = likklihood * self.weights[i]
-          self.response[i] = wei_lik
-        
-        for i in range(n_samples):
-          sample_sum = sum([self.response[j][i] for j in range(self.k)])
-          for j in range(self.k):
-            self.response[j][i] /= sample_sum"""
         
         
     def maximization(self, data):
         """
         M step - This function should calculate and update the distribution params
         """
-        #print(data.shape[0])
-        #print(f'respons in max{self.responsibilities}')
+        
         self.weights = np.sum(self.responsibilities, axis=0) / data.shape[0]
-        #print(f'weights in respons:{self.weights}')
-        
-        
         self.mus = np.sum(self.responsibilities * data, axis=0) / np.sum(self.responsibilities, axis = 0)
-        #print(f'mus after calc:{self.mus}')
-        
         self.sigmas = np.sqrt(np.sum(self.responsibilities * ((data - self.mus) ** 2), axis=0) / np.sum(self.responsibilities, axis = 0))
-        #print(f'sigmas after max:{self.sigmas}')
         
-        
-        """
-        #ethan code below
-        n_samples = data.shape[0]
-        
-        for i in range(self.k):
-          self.weights[i] = np.mean(self.response[i])
-        
-        t_w = np.sum(self.weights)
-        self.weights /= t_w
-        
-        for i in range(self.k):
-          resp = self.response[i].reshape(-1,1)
-          w_s = np.sum(resp * data, axis = 0)
-          self.mus[i] = w_s / np.sum(resp)
-          
-        for i in range(self.k):
-          resp = self.response[i].reshape(-1,1)
-          w_d = data - self.mus[i]
-          w_s = np.sum(resp * (w_d ** 2), axis = 0)
-          self.sigmas[i] = np.sqrt(w_s / np.sum(resp))"""  
     
     def cost_function(self,data):
       cost = 0
@@ -305,20 +264,7 @@ class EM(object):
       
       return cost
     
-      #ethan code below
-      
-      cost = 0.0
-      """n_sample = data.shape[0]
-      
-      for i in range(n_sample):
-        sample_li = 0.0
-        for j in range(self.k):
-          likli =  norm_pdf(data[i], self.mus[j], self.sigmas[j])
-          sample_li += self.weights[j] * likli
-        
-        cost += -np.log(sample_li)
-      return cost  """
-           
+     
     def fit(self, data):
         """
         Fit training data (the learning phase).
@@ -328,18 +274,13 @@ class EM(object):
         Stop the function when the difference between the previous cost and the current is less than eps
         or when you reach n_iter.
         """
-        NumOfSamples = data.shape[0]
         self.init_params(data)
-        data = (data - np.mean(data, axis = 0)) / (np.max(data, axis = 0) - np.min(data, axis = 0))
-        
-        self.costs = []
-        self.responsibilities = np.zeros((NumOfSamples,self.k))
         
         for i in range(self.n_iter):
           self.expectation(data)
           self.maximization(data)
           self.costs.append(self.cost_function(data))
-          if i > 0 and (self.costs[-2] - self.costs[-1]) < self.eps: # Checking if the loss value is less than (1e-8), if true -> break, else continue.
+          if i > 0 and np.abs((self.costs[-2] - self.costs[-1])) < self.eps: # Checking if the loss value is less than (1e-8), if true -> break, else continue.
             break
 
     def get_dist_params(self):
