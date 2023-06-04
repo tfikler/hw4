@@ -213,11 +213,17 @@ class EM(object):
         numberOfSamples= data.shape[0]
         self.mus = np.zeros(self.k)
         rand_indx = np.random.choice(numberOfSamples, size=self.k)
-        #for i in range(self.k):
-        #  self.mus[i] = data[rand_indx[i]]
         max = np.max(data)
         min = np.min(data)
+        
+        """three options where i got the same values, with different initializations."""
+        #for i in range(self.k):
+        #  self.mus[i] = data[rand_indx[i]]
+        
         self.mus = np.random.uniform(min, max, self.k)
+        
+        #self.mus = np.random.randn(self.k)
+        
         self.weights = np.ones(self.k) / self.k
         self.responsibilities = np.ones((numberOfSamples, self.k)) / self.k
         self.sigmas = np.random.rand(self.k)
@@ -301,13 +307,10 @@ def gmm_pdf(data, weights, mus, sigmas):
     for the given data.    
     """
     pdf = None
-    ###########################################################################
-    # TODO: Implement the function.                                           #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    
+    for weight, mu, sigma in zip(weights, mus, sigmas):
+        pdf += weight * norm_pdf(data, mu, sigma)
+    
     return pdf
 
 class NaiveBayesGaussian(object):
@@ -326,6 +329,7 @@ class NaiveBayesGaussian(object):
         self.k = k
         self.random_state = random_state
         self.prior = None
+    
 
     def fit(self, X, y):
         """
@@ -339,13 +343,9 @@ class NaiveBayesGaussian(object):
         y : array-like, shape = [n_examples]
           Target values.
         """
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        
+        #init prior
+        self.prior = np.unique(y, return_counts=True)[1] / len(y)
 
     def predict(self, X):
         """
@@ -354,14 +354,7 @@ class NaiveBayesGaussian(object):
         ----------
         X : {array-like}, shape = [n_examples, n_features]
         """
-        preds = None
-        ###########################################################################
-        # TODO: Implement the function.                                           #
-        ###########################################################################
-        pass
-        ###########################################################################
-        #                             END OF YOUR CODE                            #
-        ###########################################################################
+        preds = None 
         return preds
 
 def model_evaluation(x_train, y_train, x_test, y_test, k, best_eta, best_eps):
