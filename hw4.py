@@ -92,7 +92,7 @@ class LogisticRegressionGD(object):
             preds.append(1)
           else:
             preds.append(0)
-        return preds
+        return np.array(preds)
 
 def cross_validation(X, y, folds, algo, random_state):
     """
@@ -306,7 +306,7 @@ def gmm_pdf(data, weights, mus, sigmas):
     Returns the GMM distribution pdf according to the given mus, sigmas and weights
     for the given data.    
     """
-    pdf = None
+    pdf = 0
     
     for weight, mu, sigma in zip(weights, mus, sigmas):
         pdf += weight * norm_pdf(data, mu, sigma)
@@ -329,7 +329,7 @@ class NaiveBayesGaussian(object):
         self.k = k
         self.random_state = random_state
         self.prior = None
-    
+        
 
     def fit(self, X, y):
         """
@@ -343,10 +343,46 @@ class NaiveBayesGaussian(object):
         y : array-like, shape = [n_examples]
           Target values.
         """
+        self.classdict = {}
+        mus = {}
+        weights = {}
+        sigmas = {}
         
         #init prior
         self.prior = np.unique(y, return_counts=True)[1] / len(y)
+        """
+        fit_for_label11 = EM(self.k, random_state=self.random_state)
+        tofit = X[y.flatten() == 0][:, 1].reshape(-1,1)
+        fit_for_label11.fit(tofit)
+        sm = fit_for_label11.mus
+        sw = fit_for_label11.weights
+        ss = fit_for_label11.sigmas"""
+        
+        # iterate over the classes
+        for j in range(len(self.prior)):
+          self.classdict[j] = {}
+          
+          # iterate over the features
+          for i in range(X.shape[1]):
+            self.classdict[j]['prior'] = self.prior[j]
+            fit_for_label = EM(self.k)
+            fit_for_label.fit(X[y.flatten() == j][:, i].reshape(-1,1))
+            mus[i] = fit_for_label.mus
+            weights[i] = fit_for_label.weights
+            sigmas[i] = fit_for_label.sigmas
+           
+          self.classdict[j]['weights'] = weights
+          self.classdict[j]['mus'] = mus
+          self.classdict[j]['sigmas'] = sigmas
+          mus = {}
+          weights = {}
+          sigmas = {}
+          
+        
+        print(self.classdict)
 
+        
+        
     def predict(self, X):
         """
         Return the predicted class labels for a given instance.
@@ -354,8 +390,38 @@ class NaiveBayesGaussian(object):
         ----------
         X : {array-like}, shape = [n_examples, n_features]
         """
-        preds = None 
-        return preds
+        predictions = []
+        
+        for sample in X:
+          l = []
+          
+          for feature in range(len(self.classdict)):
+            f_l = []
+            
+            for i in range(len(self.classdict)):
+              #print(sample[feature])
+              #print(self.classdict[i]['weights'][feature])
+              #print(self.classdict[i]['mus'][feature])
+              #print(self.classdict[i]['sigmas'][feature])
+              like = gmm_pdf(sample[feature], self.classdict[i]['weights'][feature], self.classdict[i]['mus'][feature],self.classdict[i]['sigmas'][feature]) 
+              f_l.append(like)
+
+            l.append(f_l)
+          
+          posterior_probs = self.prior * np.prod(np.array(l), axis=1)
+          predicted_label = np.argmax(posterior_probs)
+          predictions.append(predicted_label)
+
+        return np.array(predictions)
+      
+
+def calculate_accuracy(y_test, y_pred):
+   num_matching = np.sum(y_test == y_pred)
+   # Calculate the total number of elements
+   total_elements = y_test.shape[0]
+   accuracy = (num_matching / total_elements)
+   return accuracy
+
 
 def model_evaluation(x_train, y_train, x_test, y_test, k, best_eta, best_eps):
     ''' 
@@ -386,14 +452,20 @@ def model_evaluation(x_train, y_train, x_test, y_test, k, best_eta, best_eps):
     lor_test_acc = None
     bayes_train_acc = None
     bayes_test_acc = None
+    
+    lor_model = LogisticRegressionGD(eta = best_eta,eps = best_eps)
+    lor_model.fit(x_train, y_train)
 
-    ###########################################################################
-    # TODO: Implement the function.                                           #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    lor_train_acc = calculate_accuracy(y_train,lor_model.predict(x_train))
+    lor_test_acc = calculate_accuracy(y_test,lor_model.predict(x_test))
+
+    # Naive Bayes with Gaussian Mixture Model
+    gnb = NaiveBayesGaussian(k = 2)
+    gnb.fit(x_train, y_train)
+    bayes_train_acc = calculate_accuracy(y_train, gnb.predict(x_train))
+    bayes_test_acc = calculate_accuracy(y_test, gnb.predict(x_test))
+    
+   
     return {'lor_train_acc': lor_train_acc,
             'lor_test_acc': lor_test_acc,
             'bayes_train_acc': bayes_train_acc,
