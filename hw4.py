@@ -239,8 +239,15 @@ class EM(object):
         calc = self.weights*norm_pdf(data,self.mus,self.sigmas)
         calc = calc / calc.sum(axis = 1, keepdims=True)
         self.responsibilities = calc
-        self.responsibilities /= np.sum(self.responsibilities, axis=1, keepdims=True)
+        #self.responsibilities /= np.sum(self.responsibilities, axis=1, keepdims=True)
         
+        """normal_dist = norm_pdf(data, self.mus, self.sigmas)
+        likelihood = normal_dist * (np.atleast_1d(self.weights)[:,None]).T
+        likelihood_sum = likelihood.sum(axis=1)[:,None]
+        self.respon = likelihood / likelihood_sum
+        
+        #Return the following to help calculating the cost later
+        return likelihood_sum"""
         
         
     def maximization(self, data):
@@ -343,6 +350,31 @@ class NaiveBayesGaussian(object):
         y : array-like, shape = [n_examples]
           Target values.
         """
+        """
+         #Get numbers of instances with each class value
+        self.labels, counts = np.unique(y, return_counts=True)
+        
+        #Initialize class fields for the prior probabilities and a list of EM objects
+        # to train the data for each class label and feature
+        self.prior = np.zeros(self.labels.shape[0])
+        self.EMs = []
+        
+        #Iterate over all class labels
+        for i in range (self.labels.shape[0]):
+            self.EMs.append([])
+            
+            #Calculate prior probability for each class label
+            self.prior[i] = counts[i] / y.shape[0]
+            
+            #Extract relevant data for each class label
+            label_data = X[self.labels[i] == y]
+            
+            #Train an EM object for each feature
+            for j in range(X.shape[1]):
+                self.EMs[i].append(EM(k=self.k))
+                self.EMs[i][-1].fit(label_data[:, j].reshape(-1,1))
+         """       
+                
         self.classdict = {}
         mus = {}
         weights = {}
@@ -350,13 +382,13 @@ class NaiveBayesGaussian(object):
         
         #init prior
         self.prior = np.unique(y, return_counts=True)[1] / len(y)
-        """
+        
         fit_for_label11 = EM(self.k, random_state=self.random_state)
         tofit = X[y.flatten() == 0][:, 1].reshape(-1,1)
         fit_for_label11.fit(tofit)
         sm = fit_for_label11.mus
         sw = fit_for_label11.weights
-        ss = fit_for_label11.sigmas"""
+        ss = fit_for_label11.sigmas
         
         # iterate over the classes
         for j in range(len(self.prior)):
@@ -390,28 +422,89 @@ class NaiveBayesGaussian(object):
         ----------
         X : {array-like}, shape = [n_examples, n_features]
         """
+        """
+        #Get likelihoods for each class label for each feature for all of the samples
+        likelihoods = np.zeros((self.labels.shape[0], X.shape[1], X.shape[0]))
+        
+        #Iterate over all class labels
+        for i in range (likelihoods.shape[0]):
+            #Iterate over all features for the given class label
+            for j in range(X.shape[1]):
+                #Extract the relevant feature data
+                feature_data = X[:, j].reshape(-1,1)
+                likelihoods[i,j] = np.max(self.EMs[i][j].expectation(feature_data))
+                
+        #Calculate posterior probability for each class label
+        posteriors = np.zeros((self.labels.shape[0], X.shape[0]))                     
+        for i in range (self.labels.shape[0]):
+            #For every instance, multiply all lilkelihoods and the prior probability
+            posteriors[i] = self.prior[i] * np.prod(likelihoods[i], axis=0)
+            
+        #Predict the class label with the highest posterior probability
+        predictions = np.argmax(posteriors, axis=0)
+        return predictions"""
+        like = 1
         predictions = []
+        posterior_probs = []
         
         for sample in X:
-          l = []
+          f_l = []
           
-          for feature in range(len(self.classdict)):
-            f_l = []
+          for label in range(len(self.classdict)):
             
-            for i in range(len(self.classdict)):
+            
+            for feature in range(len(self.classdict)):
               #print(sample[feature])
               #print(self.classdict[i]['weights'][feature])
               #print(self.classdict[i]['mus'][feature])
               #print(self.classdict[i]['sigmas'][feature])
-              like = gmm_pdf(sample[feature], self.classdict[i]['weights'][feature], self.classdict[i]['mus'][feature],self.classdict[i]['sigmas'][feature]) 
-              f_l.append(like)
-
-            l.append(f_l)
+              like = like * (gmm_pdf(sample[feature], self.classdict[label]['weights'][feature], self.classdict[label]['mus'][feature],self.classdict[label]['sigmas'][feature]))
+            
+            posterior = like * self.prior[label]
+            f_l.append(posterior)
+            like = 1
           
-          posterior_probs = self.prior * np.prod(np.array(l), axis=1)
-          predicted_label = np.argmax(posterior_probs)
-          predictions.append(predicted_label)
+          if (f_l[0] > f_l[1]):
+            posterior_probs.append(0)
+          else:
+            posterior_probs.append(1)   
+            
+        predictions = posterior_probs
+        """
+        #Get likelihoods for each class label for each feature for all of the samples
+        likelihoods = np.zeros(( self.prior.shape[0], X.shape[1], X.shape[0]))
+        #print(likelihoods)
+        dictclass = {}
+        post = np.zeros((2,2))
+        #Iterate over all class labels:
+        for i in range (likelihoods.shape[0]):
+          dictclass[i] = {}
+          #Iterate over all feature for the given class label
+          for j in range(X.shape[1]):
+            #Take data for the relvent feature data
+            feature_data = X[:, j].reshape(-1,1)
+            x = (gmm_pdf(feature_data,self.classdict[i]['weights'][j], self.classdict[i]['mus'][j],self.classdict[i]['sigmas'][j]))
+            dictclass[i][j] = x * self.prior[j]
+            
+        array_00 = dictclass[0][0]
+        array_01 = dictclass[0][1]
+        array_10 = dictclass[1][0]
+        array_11 = dictclass[1][1]
 
+        # Concatenate the arrays into two NumPy arrays
+        array_0 = np.concatenate((array_00, array_11), axis=1)
+        array_1 = np.concatenate((array_01, array_10), axis=1)
+        
+        
+        predictions1 = np.argmax(array_0, axis = 1)
+        predictions0 = np.argmax(array_1, axis = 1)
+        predictions = np.concatenate((predictions1,predictions0))
+        #predictions = np.argmax(posterior, axis=0)
+            
+            
+         """ 
+        
+        
         return np.array(predictions)
       
 
@@ -460,7 +553,7 @@ def model_evaluation(x_train, y_train, x_test, y_test, k, best_eta, best_eps):
     lor_test_acc = calculate_accuracy(y_test,lor_model.predict(x_test))
 
     # Naive Bayes with Gaussian Mixture Model
-    gnb = NaiveBayesGaussian(k = 2)
+    gnb = NaiveBayesGaussian(k = k)
     gnb.fit(x_train, y_train)
     bayes_train_acc = calculate_accuracy(y_train, gnb.predict(x_train))
     bayes_test_acc = calculate_accuracy(y_test, gnb.predict(x_test))
