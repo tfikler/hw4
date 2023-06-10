@@ -296,8 +296,8 @@ class EM(object):
           weight = self.weights[j]
           g_prob = norm_pdf(sample,mean,std)
           w_g_prob = weight * g_prob
-          cost_per_sample -= np.log(w_g_prob)
-        cost += np.log(cost_per_sample)
+          cost_per_sample -= np.log2(w_g_prob)
+        cost += np.log2(cost_per_sample)
       
       return cost
     
@@ -540,27 +540,26 @@ def generate_datasets():
     dataset_b_features = None
     dataset_b_labels = None
     
-    mean = [[2,5,1],[10,2,9]]
-    cov = [[[0.4,0,0],[0,0.7,0],[0,0,0.8]], [[1.2,0,0],[0,0.2,0],[0,0,0.6]]]
-    NB_data_class0 = np.random.multivariate_normal(mean[0], cov[0], 500)
-    dataset_a_labels1 = np.zeros(500)
-    NB_data_class1 = np.random.multivariate_normal(mean[1], cov[1], 500)
-    dataset_a_labels2 = np.ones(500)
+    mean = [[2, 2, 2]]
+    cov = [[[0.4, 0, 0], [0, 0.7, 0], [0, 0, 0.8]], [[1.2, 0, 0.9], [0, 0.2, 0], [0.8, 0, 0.6]]]
+    NB_data_class0 = np.random.multivariate_normal(mean[0], cov[0], 250)
+    dataset_a_labels1 = np.zeros(250)
+    NB_data_class1 = np.random.multivariate_normal(mean[0], cov[1], 250)
+    dataset_a_labels2 = np.ones(250)
 
     dataset_a_features = np.concatenate((NB_data_class0, NB_data_class1))
     dataset_a_labels = np.concatenate((dataset_a_labels1, dataset_a_labels2))
     
     
-    mean = [[1,5,10],[30,35,40]]
-    cov = [[[0.5,7,9],[7,0.7,4],[9,4,0.6]], [[0.3,4,11],[4,0.2,15],[11,15,0.6]]]
-    LoR_data_class0 = np.random.multivariate_normal(mean[0], cov[0], 500)
-    dataset_a_labels1 = np.zeros(500)
-    LoR_data_class1 = np.random.multivariate_normal(mean[1], cov[1], 500)
-    dataset_a_labels2 = np.ones(500)
+    mean = [[7, 6.4, 0], [4, 8, 2]]
+    cov = [[[1, 0.3, 0], [0.5, 1, 0.8], [0.2, 0.764, 1]], [[2.1, 0, 0.4], [0, 0.2, 0.6], [0, 1.6, 0.6]]]
+    LoR_data_class0 = np.random.multivariate_normal(mean[0], cov[0], 250)
+    dataset_a_labels1 = np.zeros(250)
+    LoR_data_class1 = np.random.multivariate_normal(mean[1], cov[1], 250)
+    dataset_a_labels2 = np.ones(250)
 
     dataset_b_features = np.concatenate((LoR_data_class0, LoR_data_class1))
     dataset_b_labels = np.concatenate((dataset_a_labels1, dataset_a_labels2))
-    
     
     
     return{'dataset_a_features': dataset_a_features,
