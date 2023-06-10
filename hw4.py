@@ -32,18 +32,19 @@ class LogisticRegressionGD(object):
 
     def sigmoid(self, X):
       
-
+      # Calculate sigmoid function.
       z = np.dot(X, self.theta)
-      
       e_to_power = np.exp(-z)
       
       return 1 / (1 + e_to_power)
     
     def cost_function(self, X, y):
       
+      # Calculate cost function.
       cost0 = np.dot(y, np.log(self.sigmoid(X)))
       cost1 = np.dot((1-y), np.log(1-self.sigmoid(X)))
-      cost = -((cost1 + cost0))/len(y) 
+      cost = -((cost1 + cost0))/len(y)
+       
       return cost
     
     def fit(self, X, y):
@@ -67,14 +68,23 @@ class LogisticRegressionGD(object):
         """
         # set random seed
         np.random.seed(self.random_state)
-        m = X.shape[0]
+        
+        # Initialize theta's with zeros.
         self.theta = np.zeros((X.shape[1]) + 1)
+        
+        # Apply bais trick for the data.
         new_data = np.c_[np.ones((X.shape[0],1)),X]
+        
+        
         for i in range(self.n_iter):
+          
+          #Calculate the new theta's, according to the sigmoid function.
           self.theta = self.theta - self.eta * np.dot(new_data.T,self.sigmoid(new_data) - y)
           self.thetas.append(self.theta)
+          
+          # Check convergent
           self.Js.append(self.cost_function(new_data,y))
-          if i > 0 and (self.Js[-2] - self.Js[-1] < self.eps): # Checking if the loss value is less than (1e-8), if true -> break, else continue.
+          if i > 0 and (self.Js[-2] - self.Js[-1] < self.eps): # Checking if the loss value is less than self.eps, if true -> break, else continue.
             break 
 
     def predict(self, X):
@@ -85,13 +95,20 @@ class LogisticRegressionGD(object):
         X : {array-like}, shape = [n_examples, n_features]
         """
         preds = []
+        
+        # Apply bais trick for the data.
         new_data = np.c_[np.ones((X.shape[0],1)),X]
-        x = self.sigmoid(new_data)
-        for i in x:
+        
+        # Apply sigmoid function on the data
+        data_with_sigmoid = self.sigmoid(new_data)
+        
+        # Iterate over all the data, and predict the class.
+        for i in data_with_sigmoid:
           if i > 0.5:
             preds.append(1)
           else:
             preds.append(0)
+            
         return np.array(preds)
 
 def cross_validation(X, y, folds, algo, random_state):
@@ -117,40 +134,50 @@ def cross_validation(X, y, folds, algo, random_state):
 
     Returns the cross validation accuracy.
     """
-
+    number_of_folds = folds
     cv_accuracy = None
     accurencies = []
-    # set random seed
+    # set random seed, and shuffle the data
     np.random.seed(random_state)
     indices = np.arange(len(X))
     np.random.shuffle(indices)
     X = X[indices]
     y = y[indices]
     
-    fold_size = len(X) // 5
+    # Create the folds size.
+    fold_size = len(X) // number_of_folds
 
+    # Create the actual data folds.
     foldsX = []
     foldsy = []
     start_idx = 0
-    for _ in range(5):
+    for _ in range(number_of_folds):
       folds = X[start_idx : start_idx + fold_size]
       foldsX.append(folds)
       folds = y[start_idx : start_idx + fold_size]
       foldsy.append(folds)
       start_idx += fold_size
     
-    for i in range(5):
+    # Train and calculate accurancy according to the folds.
+    for i in range(number_of_folds):
       indices = [j for j in range(5) if j != i]  # Indices of folds to concatenate
       X_train = np.concatenate([foldsX[j] for j in indices])
       y_train = np.concatenate([foldsy[j] for j in indices])
       X_val = foldsX[i]
       y_val = foldsy[i]
+      
+      # Fit the data according to the specific fold.
       algo.fit(X_train,y_train)
+      
+      # Predict according to the specific fold.
       y_pred = algo.predict(X_val)
+      
+      # Calculate the accuracy according to the specific fold.
       accuracy = np.mean(y_pred == y_val)
       accurencies.append(accuracy)
     
-    cv_accuracy = np.mean(accurencies)   
+    cv_accuracy = np.mean(accurencies)
+       
     return cv_accuracy
 
 def norm_pdf(data, mu, sigma):
@@ -204,28 +231,27 @@ class EM(object):
         self.costs = None
         
 
-    # initial guesses for parameters
     def init_params(self, data):
         """
         Initialize distribution params
         """
         self.costs = []
         numberOfSamples= data.shape[0]
+        
+        # Initialize the mus randomly between the maximum and minimum values of the data 
         self.mus = np.zeros(self.k)
-        rand_indx = np.random.choice(numberOfSamples, size=self.k)
+        np.random.choice(numberOfSamples, size=self.k)
         max = np.max(data)
         min = np.min(data)
-        
-        """three options where i got the same values, with different initializations."""
-        #for i in range(self.k):
-        #  self.mus[i] = data[rand_indx[i]]
-        
         self.mus = np.random.uniform(min, max, self.k)
         
-        #self.mus = np.random.randn(self.k)
-        
+        # Initialize the weights equaly
         self.weights = np.ones(self.k) / self.k
+        
+        # Initalize empty responsibilites numpy array with ones.
         self.responsibilities = np.ones((numberOfSamples, self.k)) / self.k
+        
+        # Initalize random sigmas.
         self.sigmas = np.random.rand(self.k)
         
         
@@ -235,19 +261,10 @@ class EM(object):
         """
         E step - This function should calculate and update the responsibilities
         """
-        
+        # Calculate and update the responsibilites numpy array.
         calc = self.weights*norm_pdf(data,self.mus,self.sigmas)
         calc = calc / calc.sum(axis = 1, keepdims=True)
         self.responsibilities = calc
-        #self.responsibilities /= np.sum(self.responsibilities, axis=1, keepdims=True)
-        
-        """normal_dist = norm_pdf(data, self.mus, self.sigmas)
-        likelihood = normal_dist * (np.atleast_1d(self.weights)[:,None]).T
-        likelihood_sum = likelihood.sum(axis=1)[:,None]
-        self.respon = likelihood / likelihood_sum
-        
-        #Return the following to help calculating the cost later
-        return likelihood_sum"""
         
         
     def maximization(self, data):
@@ -255,14 +272,21 @@ class EM(object):
         M step - This function should calculate and update the distribution params
         """
         
+        # Update the weights.
         self.weights = np.sum(self.responsibilities, axis=0) / data.shape[0]
+        
+        # Update the mus.
         self.mus = np.sum(self.responsibilities * data, axis=0) / np.sum(self.responsibilities, axis = 0)
+        
+        # Update the sigmas.
         self.sigmas = np.sqrt(np.sum(self.responsibilities * ((data - self.mus) ** 2), axis=0) / np.sum(self.responsibilities, axis = 0))
         
     
     def cost_function(self,data):
+      
       cost = 0
       
+      # Calculate the cost for each sample in the data.
       for i in range(data.shape[0]):
         cost_per_sample = 0
         sample = data[i]
@@ -287,13 +311,21 @@ class EM(object):
         Stop the function when the difference between the previous cost and the current is less than eps
         or when you reach n_iter.
         """
+        
+        # Initialize the params of the data.
         self.init_params(data)
         
         for i in range(self.n_iter):
+          
+          # Doing expectation step of the EM algorithm.
           self.expectation(data)
+          
+          # Doing maximization step of the EM algorithm.
           self.maximization(data)
+          
+          # Check convergent.
           self.costs.append(self.cost_function(data))
-          if i > 0 and np.abs((self.costs[-2] - self.costs[-1])) < self.eps: # Checking if the loss value is less than (1e-8), if true -> break, else continue.
+          if i > 0 and np.abs((self.costs[-2] - self.costs[-1])) < self.eps: # Checking if the loss value is less than self.eps, if true -> break, else continue.
             break
 
     def get_dist_params(self):
@@ -349,69 +381,43 @@ class NaiveBayesGaussian(object):
           n_features is the number of features.
         y : array-like, shape = [n_examples]
           Target values.
-        """
-        """
-         #Get numbers of instances with each class value
-        self.labels, counts = np.unique(y, return_counts=True)
-        
-        #Initialize class fields for the prior probabilities and a list of EM objects
-        # to train the data for each class label and feature
-        self.prior = np.zeros(self.labels.shape[0])
-        self.EMs = []
-        
-        #Iterate over all class labels
-        for i in range (self.labels.shape[0]):
-            self.EMs.append([])
-            
-            #Calculate prior probability for each class label
-            self.prior[i] = counts[i] / y.shape[0]
-            
-            #Extract relevant data for each class label
-            label_data = X[self.labels[i] == y]
-            
-            #Train an EM object for each feature
-            for j in range(X.shape[1]):
-                self.EMs[i].append(EM(k=self.k))
-                self.EMs[i][-1].fit(label_data[:, j].reshape(-1,1))
-         """       
+        """      
                 
         self.classdict = {}
         mus = {}
         weights = {}
         sigmas = {}
         
-        #init prior
+        # Get prior probabilities
         self.prior = np.unique(y, return_counts=True)[1] / len(y)
         
-        fit_for_label11 = EM(self.k, random_state=self.random_state)
-        tofit = X[y.flatten() == 0][:, 1].reshape(-1,1)
-        fit_for_label11.fit(tofit)
-        sm = fit_for_label11.mus
-        sw = fit_for_label11.weights
-        ss = fit_for_label11.sigmas
-        
-        # iterate over the classes
+        # Iterate over the classes
         for j in range(len(self.prior)):
           self.classdict[j] = {}
           
-          # iterate over the features
+          # Iterate over the features
           for i in range(X.shape[1]):
             self.classdict[j]['prior'] = self.prior[j]
+            
+            # Fit the params for each feature in each class.
             fit_for_label = EM(self.k)
             fit_for_label.fit(X[y.flatten() == j][:, i].reshape(-1,1))
+            
+            # Store for each feature in each class the weights, mus, and sigams.
             mus[i] = fit_for_label.mus
             weights[i] = fit_for_label.weights
             sigmas[i] = fit_for_label.sigmas
-           
+          
+          # Store the params in a dictionary 
           self.classdict[j]['weights'] = weights
           self.classdict[j]['mus'] = mus
           self.classdict[j]['sigmas'] = sigmas
+          
+          # Empty the dictionaries to start again.
           mus = {}
           weights = {}
           sigmas = {}
           
-        
-        print(self.classdict)
 
         
         
@@ -422,98 +428,51 @@ class NaiveBayesGaussian(object):
         ----------
         X : {array-like}, shape = [n_examples, n_features]
         """
-        """
-        #Get likelihoods for each class label for each feature for all of the samples
-        likelihoods = np.zeros((self.labels.shape[0], X.shape[1], X.shape[0]))
-        
-        #Iterate over all class labels
-        for i in range (likelihoods.shape[0]):
-            #Iterate over all features for the given class label
-            for j in range(X.shape[1]):
-                #Extract the relevant feature data
-                feature_data = X[:, j].reshape(-1,1)
-                likelihoods[i,j] = np.max(self.EMs[i][j].expectation(feature_data))
-                
-        #Calculate posterior probability for each class label
-        posteriors = np.zeros((self.labels.shape[0], X.shape[0]))                     
-        for i in range (self.labels.shape[0]):
-            #For every instance, multiply all lilkelihoods and the prior probability
-            posteriors[i] = self.prior[i] * np.prod(likelihoods[i], axis=0)
-            
-        #Predict the class label with the highest posterior probability
-        predictions = np.argmax(posteriors, axis=0)
-        return predictions"""
         like = 1
         predictions = []
         posterior_probs = []
         
+        # Iterate over all sample in the data set.
         for sample in X:
-          f_l = []
+          class_posteriors = []
           
+          # Iterate over the classes.
           for label in range(len(self.classdict)):
             
-            
-            for feature in range(len(self.classdict)):
-              #print(sample[feature])
-              #print(self.classdict[i]['weights'][feature])
-              #print(self.classdict[i]['mus'][feature])
-              #print(self.classdict[i]['sigmas'][feature])
+            # Iterate over the features.
+            for feature in range(X.shape[1]):
+              
+              # Under the naive bayes assumption, multiply the features likelihoods.
               like = like * (gmm_pdf(sample[feature], self.classdict[label]['weights'][feature], self.classdict[label]['mus'][feature],self.classdict[label]['sigmas'][feature]))
             
+            # calculate the posterior.
             posterior = like * self.prior[label]
-            f_l.append(posterior)
+            class_posteriors.append(posterior)
             like = 1
           
-          if (f_l[0] > f_l[1]):
+          # Predict the class according to the max posterior. 
+          if (class_posteriors[0] > class_posteriors[1]):
             posterior_probs.append(0)
           else:
             posterior_probs.append(1)   
             
         predictions = posterior_probs
-        """
-        #Get likelihoods for each class label for each feature for all of the samples
-        likelihoods = np.zeros(( self.prior.shape[0], X.shape[1], X.shape[0]))
-        #print(likelihoods)
-        dictclass = {}
-        post = np.zeros((2,2))
-        #Iterate over all class labels:
-        for i in range (likelihoods.shape[0]):
-          dictclass[i] = {}
-          #Iterate over all feature for the given class label
-          for j in range(X.shape[1]):
-            #Take data for the relvent feature data
-            feature_data = X[:, j].reshape(-1,1)
-            x = (gmm_pdf(feature_data,self.classdict[i]['weights'][j], self.classdict[i]['mus'][j],self.classdict[i]['sigmas'][j]))
-            dictclass[i][j] = x * self.prior[j]
-            
-        array_00 = dictclass[0][0]
-        array_01 = dictclass[0][1]
-        array_10 = dictclass[1][0]
-        array_11 = dictclass[1][1]
-
-        # Concatenate the arrays into two NumPy arrays
-        array_0 = np.concatenate((array_00, array_11), axis=1)
-        array_1 = np.concatenate((array_01, array_10), axis=1)
-        
-        
-        predictions1 = np.argmax(array_0, axis = 1)
-        predictions0 = np.argmax(array_1, axis = 1)
-        predictions = np.concatenate((predictions1,predictions0))
-        #predictions = np.argmax(posterior, axis=0)
-            
-            
-         """ 
-        
         
         return np.array(predictions)
       
 
 def calculate_accuracy(y_test, y_pred):
-   num_matching = np.sum(y_test == y_pred)
-   # Calculate the total number of elements
-   total_elements = y_test.shape[0]
-   accuracy = (num_matching / total_elements)
-   return accuracy
+  
+  # Calculate the total number of elements
+  total_elements = y_test.shape[0]
+  
+  # Compute the number of correct predictions.
+  num_matching = np.sum(y_test == y_pred)
+  
+  # Calculate the accuracy.
+  accuracy = (num_matching / total_elements)
+  
+  return accuracy
 
 
 def model_evaluation(x_train, y_train, x_test, y_test, k, best_eta, best_eps):
@@ -546,15 +505,19 @@ def model_evaluation(x_train, y_train, x_test, y_test, k, best_eta, best_eps):
     bayes_train_acc = None
     bayes_test_acc = None
     
+    # Logistic Regresstion.
     lor_model = LogisticRegressionGD(eta = best_eta,eps = best_eps)
     lor_model.fit(x_train, y_train)
 
+    # Calculate accuracy for the Logistic Regression.
     lor_train_acc = calculate_accuracy(y_train,lor_model.predict(x_train))
     lor_test_acc = calculate_accuracy(y_test,lor_model.predict(x_test))
 
-    # Naive Bayes with Gaussian Mixture Model
+    # Naive Bayes with Gaussian Mixture Model.
     gnb = NaiveBayesGaussian(k = k)
     gnb.fit(x_train, y_train)
+    
+    # Calculate accuracy for the Naive Bayes.
     bayes_train_acc = calculate_accuracy(y_train, gnb.predict(x_train))
     bayes_test_acc = calculate_accuracy(y_test, gnb.predict(x_test))
     
@@ -571,17 +534,35 @@ def generate_datasets():
     It should generate the two dataset as described in the jupyter notebook,
     and return them according to the provided return dict.
     '''
+    
     dataset_a_features = None
     dataset_a_labels = None
     dataset_b_features = None
     dataset_b_labels = None
-    ###########################################################################
-    # TODO: Implement the function.                                           #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    
+    mean = [[2,5,1],[10,2,9]]
+    cov = [[[0.4,0,0],[0,0.7,0],[0,0,0.8]], [[1.2,0,0],[0,0.2,0],[0,0,0.6]]]
+    NB_data_class0 = np.random.multivariate_normal(mean[0], cov[0], 500)
+    dataset_a_labels1 = np.zeros(500)
+    NB_data_class1 = np.random.multivariate_normal(mean[1], cov[1], 500)
+    dataset_a_labels2 = np.ones(500)
+
+    dataset_a_features = np.concatenate((NB_data_class0, NB_data_class1))
+    dataset_a_labels = np.concatenate((dataset_a_labels1, dataset_a_labels2))
+    
+    
+    mean = [[1,5,10],[30,35,40]]
+    cov = [[[0.5,7,9],[7,0.7,4],[9,4,0.6]], [[0.3,4,11],[4,0.2,15],[11,15,0.6]]]
+    LoR_data_class0 = np.random.multivariate_normal(mean[0], cov[0], 500)
+    dataset_a_labels1 = np.zeros(500)
+    LoR_data_class1 = np.random.multivariate_normal(mean[1], cov[1], 500)
+    dataset_a_labels2 = np.ones(500)
+
+    dataset_b_features = np.concatenate((LoR_data_class0, LoR_data_class1))
+    dataset_b_labels = np.concatenate((dataset_a_labels1, dataset_a_labels2))
+    
+    
+    
     return{'dataset_a_features': dataset_a_features,
            'dataset_a_labels': dataset_a_labels,
            'dataset_b_features': dataset_b_features,
